@@ -7,12 +7,13 @@ import requests
 from crewai import Crew
 from tasks import Tasks
 from agents import Agents
+from completion import Completion
 
 # Chargez votre OPENAI_API_KEY à partir de votre fichier .env
 load_dotenv()
 
 # Exemple d'utilisation de la fonction fetch_from_airtable
-api_key = os.getenv('AIRTABLE_API_KEY')  # Assure-toi de stocker ta clé API dans le fichier .env
+api_key = os.getenv('AIRTABLE_API_KEY') 
 base_id = 'appRw31lR2vRnbmZh'
 table_name = 'tbl1SB4jobmAWKC9j'
 
@@ -24,6 +25,27 @@ headers = {
     'Authorization': f'Bearer {api_key}',
     'Content-Type': 'application/json'
 }
+
+id_field = "id"
+
+def retrieve_records():
+    response = requests.get(endpoint, headers=headers)
+    response.raise_for_status()
+    records = response.json().get('records', [])
+    return records
+
+def update_records(records):
+    updated_records = []
+    for record in records:
+        existing_id = search_registration({'id': record['id']})
+        if existing_id:
+            updated_record = update_registration(existing_id, record['fields'])
+            updated_records.append(updated_record)
+    return updated_records
+
+def generate_pdfs(records, pdf_path):
+    for record in records:
+        print(f"Generating PDF for record {record['id']} at {create_pdf_path}")  # Simulated PDF generation
 
 # Recherche un enregistrement par ID dans Airtable pour voir si celui-ci existe déjà.
 def search_registration(data):
@@ -37,6 +59,17 @@ def search_registration(data):
 # Met à jour un enregistrement existant dans Airtable avec les nouvelles données fournies.
 def update_registration(record_id, data):
     update_endpoint = f"{endpoint}/{record_id}"
+
+    # Vérifie si le nom ou le prénom est présent
+    if id_field in fields:
+        name_or_surname = fields.get(id_field, "Unknown")
+
+    # Vérifie les champs à vérifier pour les informations manquantes
+    for field in fields_to_check:
+        if field not in fields or not fields[field]:
+            missing_value = input(f"Veuillez entrer la valeur pour le champ '{field}' pour le fichier {name_or_surname}: ")
+            fields_to_fill[field] = missing_value
+
     try:
         response = requests.patch(update_endpoint, headers=headers, json={'fields': data})  # Effectue la requête PATCH.
         response.raise_for_status()
@@ -111,13 +144,21 @@ def process_excel_and_post():
 # Exécution principale
 if __name__ == "__main__":
     agents = Agents()
+    fields_to_check = "structured_data"  # Liste des champs à vérifier pour les informations manquantes
     pdf_file_path = "Documents/Formulaire_remplie_cris2.pdf"
-    tasks = Tasks(agents.pdf_reader, agents.article_writer, agents.data_manager, pdf_file_path)
+    tasks = Tasks(agents.pdf_reader, agents.article_writer, agents.data_updater, agents.data_manager, agents.pdf_generator, pdf_file_path)
 
-    crew = Crew(agents=[agents.pdf_reader, agents.article_writer, agents.data_manager], tasks=[tasks.task_read_pdf, tasks.task_format_json, tasks.task_avoid_duplication], verbose=2)
+    crew = Crew(agents=[agents.pdf_reader, agents.article_writer, agents.data_updater, agents.data_manager, agents.pdf_generator], tasks=[tasks.task_read_pdf, tasks.task_format_json, tasks.task_data_update, tasks.task_avoid_duplication, tasks.task_pdf_generate], verbose=2)
     result = crew.kickoff()
 
     structured_data = create_json_structure(result)
+
+    records = retrieve_records()
+    if records:
+        updated_records = update_records(records)
+        create_pdf_path = "Filled_PDF"
+        generate_pdfs(updated_records, create_pdf_path)
+
     if structured_data:
         add_or_update(structured_data)
         user_defined_filename = input("How do you want to name the file? (don't add an extension): ")

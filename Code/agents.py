@@ -46,12 +46,33 @@ class Agents:
             llm=model
         )
 
+        self.data_updater = Agent(
+            role='Data Updater',
+            goal="""First, query the AirTable API to find the fields where "null" is written. 
+            Secondly, asks the user to fill in the "null" fields and update the database.
+            """,
+            backstory='Expert in data recovery and updating.',
+            verbose=True,
+            allow_delegation=False,
+            llm=model
+        )
+
         self.data_manager = Agent(
             role='Data Manager',
             goal="""Check that the data to be imported into AirTable or a JSON file is not duplicated, if there are any.
             IMPORTANT : You can't edit the structure of the JSON file.
             """,
             backstory='Expert to avoid duplication of data and not to modify the files.',
+            verbose=True,
+            allow_delegation=False,
+            llm=model
+        )
+
+        self.pdf_generator = Agent(
+            role='PDF Generator',
+            goal="""Generate new filled PDF files, based on database data.
+            """,
+            backstory='Expert to generate PDF files.',
             verbose=True,
             allow_delegation=False,
             llm=model

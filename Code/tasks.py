@@ -2,23 +2,27 @@ from crewai import Task
 
 # Tasks
 class Tasks:
-    def __init__(self, pdf_reader, article_writer, data_manager, pdf_file_path):
+    def __init__(self, pdf_reader, article_writer, data_updater, data_manager, pdf_generator, pdf_file_path):
         self.pdf_reader = pdf_reader
         self.article_writer = article_writer
         self.data_manager = data_manager
+        self.data_updater = data_updater
+        self.pdf_generator = pdf_generator
         self.pdf_file_path = pdf_file_path
+
         self.task_read_pdf = Task(
             description=f"Read and preprocess the text from the PDF at this path: {self.pdf_file_path}",
             expected_output="""Text of the PDF.
             If the information is not written in the document, return "null".""",
             agent=self.pdf_reader
         )
+
         self.task_format_json = Task(
             description=f"""Extract the following information: 
             { 
-                "id", 
+                "id",
                 "name",
-                "surname", 
+                "surname",
                 "age",
                 "profession", 
                 "status", 
@@ -49,6 +53,7 @@ class Tasks:
             """,
             agent=self.article_writer
         )
+
         self.task_avoid_duplication = Task(
             description="""Read the rendering of the "article_writer" agent and avoid duplication of information, if any.""",
             expected_output="""Unduplicated data.
@@ -56,4 +61,23 @@ class Tasks:
             IMPORTANT : You can't edit the structure of the JSON file.
             """,
             agent=self.data_manager
+        )
+
+        self.task_data_update = Task(
+            description="""Update database informations.""",
+            expected_output="""First, query the AirTable API to find the fields where "null" is written. 
+            Secondly, asks the user to fill in the "null" fields and update the database.
+            IMPORTANT: You can't edit the structure of the JSON file.
+            You can't modify the data you receive from other agents.
+            """,
+            agent=self.data_updater
+        )
+
+        self.task_pdf_generate = Task(
+            description="""Generates PDF files.""",
+            expected_output="""Generate new filled PDF files, based on database data.
+            IMPORTANT: You can't edit the structure of the JSON file.
+            You can't modify the data you receive from other agents.
+            """,
+            agent=self.pdf_generator
         )
