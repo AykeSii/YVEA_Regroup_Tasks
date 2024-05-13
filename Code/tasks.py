@@ -2,12 +2,12 @@ from crewai import Task
 
 # Tasks
 class Tasks:
-    def __init__(self, pdf_reader, article_writer, data_updater, data_manager, pdf_generator, pdf_file_path):
+    def __init__(self, pdf_reader, article_writer, data_updater, data_manager, pdf_file_path):
         self.pdf_reader = pdf_reader
         self.article_writer = article_writer
         self.data_manager = data_manager
         self.data_updater = data_updater
-        self.pdf_generator = pdf_generator
+        # self.pdf_generator = pdf_generator
         self.pdf_file_path = pdf_file_path
 
         self.task_read_pdf = Task(
@@ -66,18 +66,18 @@ class Tasks:
         self.task_data_update = Task(
             description="""Update database informations.""",
             expected_output="""First, query the AirTable API to find the fields where "null" is written. 
-            Secondly, asks the user to fill in the "null" fields and update the database.
-            IMPORTANT: You can't edit the structure of the JSON file.
-            You can't modify the data you receive from other agents.
+            If the data is missing, let "null" written.
+            IMPORTANT: You can't edit the structure of the JSON file and you can't write any text or informations to it. If you do, you're gonna get fired.
+            You can't modify the data you receive from other agents. If you do, you're gonna get fired.
             """,
             agent=self.data_updater
         )
 
-        self.task_pdf_generate = Task(
-            description="""Generates PDF files.""",
-            expected_output="""Generate new filled PDF files, based on database data.
-            IMPORTANT: You can't edit the structure of the JSON file.
-            You can't modify the data you receive from other agents.
-            """,
-            agent=self.pdf_generator
-        )
+        # self.task_pdf_generate = Task(
+        #     description="""Generates PDF files.""",
+        #     expected_output="""Generate new filled PDF files, based on database data.
+        #     IMPORTANT: You can't edit the structure of the JSON file.
+        #     You can't modify the data you receive from other agents.
+        #     """,
+        #     agent=self.pdf_generator
+        # )

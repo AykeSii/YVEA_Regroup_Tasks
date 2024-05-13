@@ -34,55 +34,67 @@ def retrieve_records():
     records = response.json().get('records', [])
     return records
 
-def update_records(records):
+def update_records(records, fields_to_check):
     updated_records = []
     for record in records:
         existing_id = search_registration({'id': record['id']})
         if existing_id:
-            updated_record = update_registration(existing_id, record['fields'])
+            updated_record = update_registration(existing_id, record['fields'], fields_to_check)
             updated_records.append(updated_record)
     return updated_records
 
-def generate_pdfs(records, pdf_path):
+def generate_pdfs(records, create_pdf_path):
     for record in records:
-        print(f"Generating PDF for record {record['id']} at {create_pdf_path}")  # Simulated PDF generation
+        print(f"Generating PDF for record {record['id']} at {create_pdf_path}")
 
-# Recherche un enregistrement par ID dans Airtable pour voir si celui-ci existe déjà.
 def search_registration(data):
-    filter_formula = f"{{ID}} = '{data['id']}'"  # Crée une formule de filtrage pour l'API.
+    filter_formula = f"{{ID}} = '{data['id']}'"
     query_params = {'filterByFormula': filter_formula}
-    response = requests.get(endpoint, headers=headers, params=query_params)  # Effectue la requête GET.
+    response = requests.get(endpoint, headers=headers, params=query_params)
     response.raise_for_status()
-    records = response.json().get('records', []) 
+    records = response.json().get('records', [])
     return records[0]['id'] if records else None
 
-# Met à jour un enregistrement existant dans Airtable avec les nouvelles données fournies.
-def update_registration(record_id, data):
+def update_registration(record_id, data, fields_to_check):
     update_endpoint = f"{endpoint}/{record_id}"
-
-    # Vérifie si le nom ou le prénom est présent
-    if id_field in fields:
-        name_or_surname = fields.get(id_field, "Unknown")
-
-    # Vérifie les champs à vérifier pour les informations manquantes
+    fields_to_fill = {}
+    
+    print("Data received for update:", data)
+    print("Fields to check for missing info:", fields_to_check)
+    
     for field in fields_to_check:
-        if field not in fields or not fields[field]:
-            missing_value = input(f"Veuillez entrer la valeur pour le champ '{field}' pour le fichier {name_or_surname}: ")
+        # Ajouter une vérification pour la chaîne 'null' en plus de vérifier si le champ est manquant ou vide
+        if field not in data or not data[field] or data[field] == 'null':
+            print(f"Missing '{field}'.")
+            missing_value = input(f"Please enter the value for the '{field}' : ")
             fields_to_fill[field] = missing_value
 
+    if fields_to_fill:
+        data.update(fields_to_fill)
+        print("Updated data with user inputs:", data)
+
     try:
-        response = requests.patch(update_endpoint, headers=headers, json={'fields': data})  # Effectue la requête PATCH.
+        response = requests.patch(update_endpoint, headers=headers, json={'fields': data})
         response.raise_for_status()
-        print("Data updated.")
-        return response.json() 
+        print("Data updated successfully.")
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Registration update error: {e}")
+        return None
+    
+    try:
+        response = requests.patch(update_endpoint, headers=headers, json={'fields': data})
+        response.raise_for_status()
+        print("Data updated successfully.")
+        return response.json()
     except requests.RequestException as e:
         print(f"Registration update error: {e}")
         return None
 
-# Ajoute un nouvel enregistrement dans Airtable avec les données fournies.
+
 def add_registration(data):
     try:
-        response = requests.post(endpoint, headers=headers, json={'fields': data})  # Effectue la requête POST.
+        response = requests.post(endpoint, headers=headers, json={'fields': data})
         response.raise_for_status()
         print("New registration added.")
         return response.json() 
@@ -90,33 +102,33 @@ def add_registration(data):
         print(f"Error adding record: {e}")
         return None
 
-# Détermine si un enregistrement doit être ajouté ou mis à jour en fonction de son existence dans Airtable.
-def add_or_update(data):
-    record_id = search_registration(data)  # Recherche l'ID de l'enregistrement existant.
+def add_or_update(data, fields_to_check):
+    record_id = search_registration(data)
     if record_id:
-        return update_registration(record_id, data)
+        return update_registration(record_id, data, fields_to_check)
     else:
         return add_registration(data)
 
 # Fonction pour créer et retourner un dictionnaire JSON structuré
 def create_json_structure(input_text):
-    try:
-        data = json.loads(input_text)
-        structured_data = {
-            "id": data.get("id", "null"),
-            "name": data.get("name", "null"),
-            "surname": data.get("surname", "null"),
-            "age": data.get("age", "null"),
-            "profession": data.get("profession", "null"),
-            "status": data.get("status", "null"),
-            "address": data.get("address", "null"),
-            "email": data.get("email", "null"),
-            "telephone": data.get("telephone", "null")
-        }
-        return structured_data
-    except json.JSONDecodeError as e:
-        print(f"JSON formatting error: {e}")
-        return None
+    while True:
+        try:
+            data = json.loads(input_text)
+            structured_data = {
+                "id": data.get("id", "null"),
+                "name": data.get("name", "null"),
+                "surname": data.get("surname", "null"),
+                "age": data.get("age", "null"),
+                "profession": data.get("profession", "null"),
+                "status": data.get("status", "null"),
+                "address": data.get("address", "null"),
+                "email": data.get("email", "null"),
+                "telephone": data.get("telephone", "null")
+            }
+            return structured_data
+        except json.JSONDecodeError as e:
+            print(f"JSON formatting error: {e}")
+            return None
 
 # Fonction pour créer un fichier JSON
 def create_json_file(data, output_json_path):
@@ -144,27 +156,27 @@ def process_excel_and_post():
 # Exécution principale
 if __name__ == "__main__":
     agents = Agents()
-    fields_to_check = "structured_data"  # Liste des champs à vérifier pour les informations manquantes
+    fields_to_check = ["id", "name", "surname", "age", "profession", "status", "address", "email", "telephone"]  # Liste des champs à vérifier pour les informations manquantes
     pdf_file_path = "Documents/Formulaire_remplie_cris2.pdf"
-    tasks = Tasks(agents.pdf_reader, agents.article_writer, agents.data_updater, agents.data_manager, agents.pdf_generator, pdf_file_path)
+    tasks = Tasks(agents.pdf_reader, agents.article_writer, agents.data_updater, agents.data_manager, pdf_file_path)
 
-    crew = Crew(agents=[agents.pdf_reader, agents.article_writer, agents.data_updater, agents.data_manager, agents.pdf_generator], tasks=[tasks.task_read_pdf, tasks.task_format_json, tasks.task_data_update, tasks.task_avoid_duplication, tasks.task_pdf_generate], verbose=2)
+    crew = Crew(agents=[agents.pdf_reader, agents.article_writer, agents.data_updater, agents.data_manager], tasks=[tasks.task_read_pdf, tasks.task_format_json, tasks.task_data_update, tasks.task_avoid_duplication], verbose=2)
     result = crew.kickoff()
 
     structured_data = create_json_structure(result)
 
     records = retrieve_records()
     if records:
-        updated_records = update_records(records)
-        create_pdf_path = "Filled_PDF"
+        updated_records = update_records(records, fields_to_check)
+        create_pdf_path = "filled_pdfs"
         generate_pdfs(updated_records, create_pdf_path)
 
     if structured_data:
-        add_or_update(structured_data)
+        add_or_update(structured_data, fields_to_check)
         user_defined_filename = input("How do you want to name the file? (don't add an extension): ")
         destination_path = f"Informations_extracts/{user_defined_filename}.json"
         create_json_file(structured_data, destination_path)
-        
+
         xlsx_path = f"Excel_extracts/{user_defined_filename}.xlsx"
         json_to_xlsx(destination_path, xlsx_path)
 
