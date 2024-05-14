@@ -5,8 +5,8 @@ class Tasks:
     def __init__(self, pdf_reader, article_writer, data_updater, data_manager, pdf_file_path):
         self.pdf_reader = pdf_reader
         self.article_writer = article_writer
-        self.data_manager = data_manager
         self.data_updater = data_updater
+        self.data_manager = data_manager
         # self.pdf_generator = pdf_generator
         self.pdf_file_path = pdf_file_path
 

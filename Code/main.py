@@ -7,13 +7,12 @@ import requests
 from crewai import Crew
 from tasks import Tasks
 from agents import Agents
-from completion import Completion
 
 # Chargez votre OPENAI_API_KEY à partir de votre fichier .env
 load_dotenv()
 
 # Exemple d'utilisation de la fonction fetch_from_airtable
-api_key = os.getenv('AIRTABLE_API_KEY') 
+api_key = os.getenv('AIRTABLE_API_KEY')
 base_id = 'appRw31lR2vRnbmZh'
 table_name = 'tbl1SB4jobmAWKC9j'
 
@@ -43,10 +42,6 @@ def update_records(records, fields_to_check):
             updated_records.append(updated_record)
     return updated_records
 
-def generate_pdfs(records, create_pdf_path):
-    for record in records:
-        print(f"Generating PDF for record {record['id']} at {create_pdf_path}")
-
 def search_registration(data):
     filter_formula = f"{{ID}} = '{data['id']}'"
     query_params = {'filterByFormula': filter_formula}
@@ -59,19 +54,19 @@ def update_registration(record_id, data, fields_to_check):
     update_endpoint = f"{endpoint}/{record_id}"
     fields_to_fill = {}
     
-    print("Data received for update:", data)
-    print("Fields to check for missing info:", fields_to_check)
+    # print("Data received for update:", data)
+    # print("Fields to check for missing info:", fields_to_check)
     
     for field in fields_to_check:
         # Ajouter une vérification pour la chaîne 'null' en plus de vérifier si le champ est manquant ou vide
         if field not in data or not data[field] or data[field] == 'null':
-            print(f"Missing '{field}'.")
-            missing_value = input(f"Please enter the value for the '{field}' : ")
+            print(f"The element '{field}' is missing.")
+            missing_value = input(f"Please enter the value for '{field}' : ")
             fields_to_fill[field] = missing_value
 
     if fields_to_fill:
         data.update(fields_to_fill)
-        print("Updated data with user inputs:", data)
+        # print("Updated data with user inputs:", data)
 
     try:
         response = requests.patch(update_endpoint, headers=headers, json={'fields': data})
@@ -128,7 +123,7 @@ def create_json_structure(input_text):
             return structured_data
         except json.JSONDecodeError as e:
             print(f"JSON formatting error: {e}")
-            return None
+            # Ici, on ne retourne rien et donc la boucle continue
 
 # Fonction pour créer un fichier JSON
 def create_json_file(data, output_json_path):
@@ -168,8 +163,6 @@ if __name__ == "__main__":
     records = retrieve_records()
     if records:
         updated_records = update_records(records, fields_to_check)
-        create_pdf_path = "filled_pdfs"
-        generate_pdfs(updated_records, create_pdf_path)
 
     if structured_data:
         add_or_update(structured_data, fields_to_check)
